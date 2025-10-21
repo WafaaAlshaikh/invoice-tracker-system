@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import com.example.invoicetracker.model.entity.base.BaseEntity;
 
 @Entity
-@Table(name = "products")
+@Table(name = "product")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

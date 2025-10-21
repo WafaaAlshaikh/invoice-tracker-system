@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @Entity
-@Table(name = "logs")
+@Table(name = "log")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

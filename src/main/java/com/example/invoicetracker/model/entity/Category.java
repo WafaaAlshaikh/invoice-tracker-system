@@ -6,9 +6,8 @@
     import java.util.List;
     
     import com.example.invoicetracker.model.entity.base.BaseEntity;
-
     @Entity
-    @Table(name = "categories")
+    @Table(name = "category")
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -35,6 +34,6 @@
 
         
         @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
-        private List<Product> products;
+        private List<Product> product;
         
     }

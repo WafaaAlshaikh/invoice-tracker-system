@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 @Entity
-@Table(name = "roles")
+@Table(name = "role")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
