@@ -36,17 +36,14 @@ public class AuthService {
     @Transactional
     public SignupResponse registerUser(SignupRequest request) {
 
-        if (userRepository.existsByUserId(request.getUserId())) {
-        throw new DuplicateUserException("User ID already exists");
-    }
+        boolean exists = userRepository.existsByUserId(request.getUserId())
+        || userRepository.existsByUsername(request.getUsername())
+        || userRepository.existsByEmail(request.getEmail());
 
-    if (userRepository.existsByUsername(request.getUsername())) {
-        throw new DuplicateUserException("Username already exists");
-    }
+if (exists) {
+    throw new DuplicateUserException("User ID, username, or email already exists");
+}
 
-    if (userRepository.existsByEmail(request.getEmail())) {
-        throw new DuplicateUserException("Email already exists");
-    }
         Role userRole = roleRepository.findByRoleName("USER")
                 .orElseThrow(() -> new RuntimeException("Default USER role not found"));
 
