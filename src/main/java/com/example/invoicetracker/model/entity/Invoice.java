@@ -48,12 +48,10 @@ public class Invoice extends BaseEntity {
     @Column(name = "status", nullable = false)
     private InvoiceStatus status = InvoiceStatus.PENDING;
 
-
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InvoiceProduct> invoiceProduct;
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Log> log;
 
-   
 }

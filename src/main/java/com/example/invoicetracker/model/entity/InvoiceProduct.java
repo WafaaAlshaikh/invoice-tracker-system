@@ -29,7 +29,7 @@ public class InvoiceProduct {
 
     @DecimalMin(value = "0.0", inclusive = false, message = "Quantity must be positive")
     @Column(name = "quantity", nullable = false)
-    private Double quantity; 
+    private Double quantity;
 
     @DecimalMin(value = "0.0", inclusive = false, message = "Unit price must be positive")
     @Column(name = "unit_price", nullable = false)

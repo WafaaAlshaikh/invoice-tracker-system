@@ -32,17 +32,16 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final LoginAttemptService loginAttemptService;
 
-
     @Transactional
     public SignupResponse registerUser(SignupRequest request) {
 
         boolean exists = userRepository.existsByUserId(request.getUserId())
-        || userRepository.existsByUsername(request.getUsername())
-        || userRepository.existsByEmail(request.getEmail());
+                || userRepository.existsByUsername(request.getUsername())
+                || userRepository.existsByEmail(request.getEmail());
 
-if (exists) {
-    throw new DuplicateUserException("User ID, username, or email already exists");
-}
+        if (exists) {
+            throw new DuplicateUserException("User ID, username, or email already exists");
+        }
 
         Role userRole = roleRepository.findByRoleName("USER")
                 .orElseThrow(() -> new RuntimeException("Default USER role not found"));
@@ -58,7 +57,7 @@ if (exists) {
                 .build();
 
         try {
-            userRepository.save(user); 
+            userRepository.save(user);
         } catch (Exception e) {
             throw new DuplicateUserException("User ID, username, or email already exists or invalid data");
         }
@@ -85,7 +84,7 @@ if (exists) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
 
-         if (Boolean.FALSE.equals(user.getIsActive())) {
+        if (Boolean.FALSE.equals(user.getIsActive())) {
             throw new UserDeactivatedException("User account is deactivated");
         }
 
@@ -115,5 +114,3 @@ if (exists) {
                 .build();
     }
 }
-
-

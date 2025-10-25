@@ -1,5 +1,6 @@
 package com.example.invoicetracker.service;
 
+import com.example.invoicetracker.dto.CategoryFilterRequest;
 import com.example.invoicetracker.dto.CategoryRequest;
 import com.example.invoicetracker.dto.CategoryResponse;
 import com.example.invoicetracker.exception.ResourceAlreadyExistsException;
@@ -12,7 +13,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -22,26 +23,42 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse createCategory(CategoryRequest request) {
-        if (categoryRepository.existsByCategoryCode(request.getCategoryCode())) {
-            throw new ResourceAlreadyExistsException("Category code already exists");
-        }
-        if (categoryRepository.existsByCategoryName(request.getCategoryName())) {
-            throw new ResourceAlreadyExistsException("Category name already exists");
+        boolean codeExistsActive = categoryRepository.findByCategoryCodeAndIsActiveTrue(request.getCategoryCode())
+                .isPresent();
+        boolean nameExistsActive = categoryRepository.findByCategoryNameAndIsActiveTrue(request.getCategoryName())
+                .isPresent();
+
+        if (codeExistsActive || nameExistsActive) {
+            throw new ResourceAlreadyExistsException("Category code or name already exists");
         }
 
-        Category category = Category.builder()
-                .categoryCode(request.getCategoryCode())
-                .categoryName(request.getCategoryName())
-                .description(request.getDescription())
-                .build();
+        categoryRepository.findByCategoryCode(request.getCategoryCode())
+                .filter(c -> c.getIsActive() != null && !c.getIsActive())
+                .ifPresentOrElse(inactive -> {
+                    inactive.setCategoryName(request.getCategoryName());
+                    inactive.setDescription(request.getDescription());
+                    inactive.setIsActive(true);
+                    categoryRepository.save(inactive);
+                }, () -> {
 
-        Category saved = categoryRepository.save(category);
+                    Category category = Category.builder()
+                            .categoryCode(request.getCategoryCode())
+                            .categoryName(request.getCategoryName())
+                            .description(request.getDescription())
+                            .build();
+                    categoryRepository.save(category);
+                });
+
+        Category saved = categoryRepository.findByCategoryCodeAndIsActiveTrue(request.getCategoryCode())
+                .orElseThrow(() -> new RuntimeException("Failed to create or reactivate category"));
+
         return mapToResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(Long id) {
-        Category category = categoryRepository.findById(id)
+
+        Category category = categoryRepository.findByCategoryIdAndIsActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
         return mapToResponse(category);
     }
@@ -51,13 +68,22 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
 
-        if (!category.getCategoryCode().equals(request.getCategoryCode()) &&
-                categoryRepository.existsByCategoryCode(request.getCategoryCode())) {
-            throw new ResourceAlreadyExistsException("Category code already exists");
+        if (category.getIsActive() == null || !category.getIsActive()) {
+            throw new ResourceNotFoundException("Category not found with id: " + id);
         }
-        if (!category.getCategoryName().equals(request.getCategoryName()) &&
-                categoryRepository.existsByCategoryName(request.getCategoryName())) {
-            throw new ResourceAlreadyExistsException("Category name already exists");
+
+        if (!category.getCategoryCode().equals(request.getCategoryCode())) {
+            categoryRepository.findByCategoryCodeAndIsActiveTrue(request.getCategoryCode())
+                    .ifPresent(c -> {
+                        throw new ResourceAlreadyExistsException("Category code already exists");
+                    });
+        }
+
+        if (!category.getCategoryName().equals(request.getCategoryName())) {
+            categoryRepository.findByCategoryNameAndIsActiveTrue(request.getCategoryName())
+                    .ifPresent(c -> {
+                        throw new ResourceAlreadyExistsException("Category name already exists");
+                    });
         }
 
         category.setCategoryCode(request.getCategoryCode());
@@ -72,31 +98,21 @@ public class CategoryService {
     public void deleteCategory(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
-        categoryRepository.delete(category);
+        category.setIsActive(false);
+        categoryRepository.save(category);
     }
 
     @Transactional(readOnly = true)
-    public Page<CategoryResponse> listCategories(int page, int size, String sortBy, String direction, String search) {
-        Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
-        Pageable pageable = PageRequest.of(page, size, sort);
+    public Page<CategoryResponse> listCategories(CategoryFilterRequest filter) {
+        Sort sort = Sort.by(Sort.Direction.fromString(filter.getDirection()), filter.getSortBy());
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
 
         Page<Category> result;
-        if (search != null && !search.isBlank()) {
-            result = categoryRepository.findAll(pageable)
-                    .map(c -> c); 
-                      result = new PageImpl<>(
-                    categoryRepository.findAll().stream()
-                            .filter(c -> c.getCategoryCode().toLowerCase().contains(search.toLowerCase())
-                                    || c.getCategoryName().toLowerCase().contains(search.toLowerCase()))
-                            .collect(Collectors.toList()),
-                    pageable,
-                    categoryRepository.findAll().stream()
-                            .filter(c -> c.getCategoryCode().toLowerCase().contains(search.toLowerCase())
-                                    || c.getCategoryName().toLowerCase().contains(search.toLowerCase()))
-                            .count()
-            );
+
+        if (filter.getSearch() != null && !filter.getSearch().isBlank()) {
+            result = categoryRepository.searchActiveCategories(filter.getSearch(), pageable);
         } else {
-            result = categoryRepository.findAll(pageable);
+            result = categoryRepository.findAllByIsActiveTrue(pageable);
         }
 
         return result.map(this::mapToResponse);

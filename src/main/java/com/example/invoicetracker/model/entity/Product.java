@@ -40,5 +40,4 @@ public class Product extends BaseEntity {
     @Positive(message = "Unit price must be positive")
     private BigDecimal unitPrice;
 
-
 }

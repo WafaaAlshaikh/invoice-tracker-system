@@ -15,7 +15,8 @@ public class JpaJsonConverter implements AttributeConverter<Map<String, Object>,
 
     @Override
     public String convertToDatabaseColumn(Map<String, Object> attribute) {
-        if(attribute == null) return "{}";
+        if (attribute == null)
+            return "{}";
         try {
             return mapper.writeValueAsString(attribute);
         } catch (Exception e) {
@@ -25,12 +26,13 @@ public class JpaJsonConverter implements AttributeConverter<Map<String, Object>,
 
     @Override
     public Map<String, Object> convertToEntityAttribute(String dbData) {
-        if(dbData == null || dbData.isEmpty()) return new HashMap<>();
+        if (dbData == null || dbData.isEmpty())
+            return new HashMap<>();
         try {
-            return mapper.readValue(dbData, new TypeReference<Map<String,Object>>() {});
+            return mapper.readValue(dbData, new TypeReference<Map<String, Object>>() {
+            });
         } catch (Exception e) {
             throw new RuntimeException("Error converting JSON to map", e);
         }
     }
 }
-

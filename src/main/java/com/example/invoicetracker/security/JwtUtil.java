@@ -13,16 +13,14 @@ public class JwtUtil {
 
     private static final long JWT_EXPIRATION = 24 * 60 * 60 * 1000;
     private static final String SECRET_KEY = "thisIsASuperLongSecureJwtSecretKeyThatIsDefinitely64CharsOrMore!";
- 
 
-   private final Key secretKey = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
-
+    private final Key secretKey = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
     public String generateToken(String username, Set<String> roles) {
         Set<String> prefixedRoles = roles.stream()
-            .map(r -> "ROLE_" + r)
-            .collect(Collectors.toSet());
-            
+                .map(r -> "ROLE_" + r)
+                .collect(Collectors.toSet());
+
         return Jwts.builder()
                 .setSubject(username)
                 .addClaims(Map.of("roles", prefixedRoles))
@@ -59,8 +57,4 @@ public class JwtUtil {
                 .getBody();
     }
 
-    public String extractUsername(String token) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'extractUsername'");
-    }
 }

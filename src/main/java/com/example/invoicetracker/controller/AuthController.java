@@ -25,44 +25,41 @@ public class AuthController {
     private final AuthService authService;
     private final JwtUtil jwtUtil;
 
-
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request) {
         SignupResponse response = authService.registerUser(request);
         return ResponseEntity.status(201).body(response);
     }
 
-
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {  
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(response);
-   }
+    }
 
-   @GetMapping("/verify")
-   public ResponseEntity<?> verifyToken(HttpServletRequest request) {
-       String token = extractTokenFromRequest(request);
-    
-       if (token != null && jwtUtil.validateToken(token)) {
-          String username = jwtUtil.getUsernameFromToken(token);
-          Set<String> roles = jwtUtil.getRolesFromToken(token);
-        
-           return ResponseEntity.ok(Map.of(
-               "username", username,
-               "roles", roles,
-               "valid", true
-            ));
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyToken(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+
+        if (token != null && jwtUtil.validateToken(token)) {
+            String username = jwtUtil.getUsernameFromToken(token);
+            Set<String> roles = jwtUtil.getRolesFromToken(token);
+
+            return ResponseEntity.ok(Map.of(
+                    "username", username,
+                    "roles", roles,
+                    "valid", true));
         }
-    
-       return ResponseEntity.status(401).body(Map.of("valid", false));
-   }
 
-   private String extractTokenFromRequest(HttpServletRequest request) {
-       String bearerToken = request.getHeader("Authorization");
-       if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-           return bearerToken.substring(7);
-       }
-       return null;
-   }
+        return ResponseEntity.status(401).body(Map.of("valid", false));
+    }
+
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
 
 }

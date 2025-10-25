@@ -26,7 +26,8 @@ public class LoginAttemptService {
 
     public boolean isBlocked(String username) {
         Attempt attempt = attempts.get(username);
-        if (attempt == null) return false;
+        if (attempt == null)
+            return false;
 
         if (attempt.count >= MAX_ATTEMPTS) {
             if (attempt.firstAttemptTime.plusMinutes(LOCK_TIME_MINUTES).isAfter(LocalDateTime.now())) {
