@@ -1,35 +1,43 @@
-package com.example.invoicetracker.model.entity.base;
+    package com.example.invoicetracker.model.entity.base;
 
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import java.time.LocalDateTime;
+    import jakarta.persistence.*;
+    import lombok.Getter;
+    import lombok.Setter;
+    import lombok.experimental.SuperBuilder;
+    import lombok.NoArgsConstructor;
+    import lombok.AllArgsConstructor;
 
-@MappedSuperclass
-@Getter
-@Setter
-public abstract class BaseEntity {
 
-    @Column(name = "is_active", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
-    protected Boolean isActive = true;
+    import java.time.LocalDateTime;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    protected LocalDateTime createdAt;
+    @MappedSuperclass
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @SuperBuilder(toBuilder = true)
+    public abstract class BaseEntity {
 
-    @Column(name = "updated_at", nullable = false)
-    protected LocalDateTime updatedAt;
+        @Column(name = "is_active", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+        protected Boolean isActive = true;
 
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-        if (this.isActive == null)
-            this.isActive = true;
+        @Column(name = "created_at", nullable = false, updatable = false)
+        protected LocalDateTime createdAt;
+
+        @Column(name = "updated_at", nullable = false)
+        protected LocalDateTime updatedAt;
+
+        @PrePersist
+        protected void onCreate() {
+            LocalDateTime now = LocalDateTime.now();
+            this.createdAt = now;
+            this.updatedAt = now;
+            if (this.isActive == null)
+                this.isActive = true;
+        }
+
+        @PreUpdate
+        protected void onUpdate() {
+            this.updatedAt = LocalDateTime.now();
+        }
     }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-}

@@ -6,6 +6,9 @@ import com.example.invoicetracker.model.enums.InvoiceStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -14,7 +17,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder(toBuilder = true)
+@EqualsAndHashCode(callSuper = true)
 public class Invoice extends BaseEntity {
 
     @Id
@@ -22,9 +26,9 @@ public class Invoice extends BaseEntity {
     @Column(name = "invoice_id")
     private Long invoiceId;
 
-    @Column(name = "uploaded_by", length = 50, nullable = false)
-    @NotBlank(message = "Uploaded by is required")
-    private String uploadedBy;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "uploaded_by_user_id", nullable = false)
+    private User uploadedByUser;
 
     @Column(name = "invoice_date", nullable = false)
     @NotNull(message = "Invoice date is required")
@@ -41,12 +45,21 @@ public class Invoice extends BaseEntity {
 
     @Column(name = "total_amount", nullable = false)
     @NotNull(message = "Total amount is required")
-    @Positive(message = "Total amount must be positive")
+    @DecimalMin(value = "0.0", message = "Total amount must be non-negative")
     private Double totalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private InvoiceStatus status = InvoiceStatus.PENDING;
+
+    @Column(name = "stored_file_name")
+    private String storedFileName;
+    
+    @Column(name = "original_file_name")
+    private String originalFileName; 
+    
+    @Column(name = "file_size")
+    private Long fileSize; 
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InvoiceProduct> invoiceProduct;

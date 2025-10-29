@@ -3,8 +3,6 @@ package com.example.invoicetracker.dto;
 
 import lombok.*;
 
-import java.math.BigDecimal;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,6 +14,6 @@ public class ProductResponse {
     private String productCode;
     private String productName;
     private String description;
-    private BigDecimal unitPrice;
+    private Double unitPrice;
     private Boolean isActive;
 }

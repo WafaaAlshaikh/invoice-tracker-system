@@ -3,7 +3,6 @@ package com.example.invoicetracker.dto;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -24,5 +23,5 @@ public class ProductRequest {
 
     @NotNull(message = "Unit price is required")
     @Positive(message = "Unit price must be positive")
-    private BigDecimal unitPrice;
+    private Double unitPrice;
 }

@@ -3,6 +3,8 @@ package com.example.invoicetracker.model.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.util.List;
 
 import com.example.invoicetracker.model.entity.base.BaseEntity;
@@ -12,7 +14,7 @@ import com.example.invoicetracker.model.entity.base.BaseEntity;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder(toBuilder = true)
 public class Category extends BaseEntity {
 
     @Id
