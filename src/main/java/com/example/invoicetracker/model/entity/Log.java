@@ -3,7 +3,6 @@ package com.example.invoicetracker.model.entity;
 import com.example.invoicetracker.model.converter.JpaJsonConverter;
 import com.example.invoicetracker.model.enums.ActionType;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.time.LocalDateTime;
