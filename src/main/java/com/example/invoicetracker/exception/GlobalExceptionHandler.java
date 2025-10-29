@@ -65,4 +65,18 @@ public ResponseEntity<?> handleRoleNotFound(RoleNotFoundException ex) {
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
+     @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<?> handleIllegalArgument(IllegalArgumentException ex) {
+        if (ex.getMessage().contains("File") || 
+            ex.getMessage().contains("file") ||
+            ex.getMessage().contains("size") ||
+            ex.getMessage().contains("extension")) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "File Validation Error",
+                "message", ex.getMessage()
+            ));
+        }
+        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    }
+
 }

@@ -3,6 +3,8 @@ package com.example.invoicetracker.model.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.math.BigDecimal;
 
 import com.example.invoicetracker.model.entity.base.BaseEntity;
@@ -12,7 +14,7 @@ import com.example.invoicetracker.model.entity.base.BaseEntity;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder(toBuilder = true)
 public class Product extends BaseEntity {
 
     @Id
@@ -38,6 +40,6 @@ public class Product extends BaseEntity {
     @Column(name = "unit_price", nullable = false)
     @NotNull(message = "Unit price is required")
     @Positive(message = "Unit price must be positive")
-    private BigDecimal unitPrice;
+    private Double unitPrice;
 
 }

@@ -1,0 +1,40 @@
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.swp
+*.swo
+
+# Build
+target/
+build/
+out/
+bin/
+*.jar
+*.war
+*.ear
+
+# Local configurations
+*.properties.local
+application-dev.properties
+*.env
+.env.local
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Database (if any)
+*.db
+*.sqlite
+
+# Temp files
+*.tmp
+*.temp

@@ -28,14 +28,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        log.info("===== JWT FILTER START =====");
+        log.info("Request URI: {}", request.getRequestURI());
+        log.info("Authorization header: {}", request.getHeader("Authorization"));
+
         String token = extractTokenFromRequest(request);
 
         if (token != null) {
+            log.info("Token found: {}", token);
+
             boolean valid = jwtUtil.validateToken(token);
+            log.info("Token valid: {}", valid);
 
             if (valid) {
                 String username = jwtUtil.getUsernameFromToken(token);
                 Set<String> roles = jwtUtil.getRolesFromToken(token);
+
+                log.info("Authenticated username: {}", username);
+                log.info("Roles from token: {}", roles);
 
                 Set<SimpleGrantedAuthority> authorities = roles.stream()
                         .map(SimpleGrantedAuthority::new)
@@ -45,12 +55,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.info("SecurityContext updated with authentication");
+            } else {
+                log.warn("Invalid token, skipping authentication");
             }
         } else {
             log.info("No token found in request");
         }
 
         filterChain.doFilter(request, response);
+        log.info("===== JWT FILTER END =====");
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {

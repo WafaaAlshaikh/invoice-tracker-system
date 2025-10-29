@@ -26,9 +26,9 @@ public class Log {
     @JoinColumn(name = "invoice_id", nullable = false)
     private Invoice invoice;
 
-    @NotBlank(message = "PerformedBy is required")
-    @Column(name = "performed_by", length = 50, nullable = false)
-    private String performedBy;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "performed_by", nullable = false)
+    private User performedBy;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action_type", length = 20, nullable = false)
