@@ -28,6 +28,17 @@ public class InvoiceController {
     private final InvoiceUploadRequestMapper requestMapper;
 
     @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
+    @PostMapping
+    public ResponseEntity<InvoiceResponse> createInvoice(
+            @Validated @RequestBody InvoiceRequest request,
+            Authentication authentication) {
+        String username = authentication.getName();
+        String role = extractRole(authentication);
+        log.info("Creating invoice for user: {}, role: {}", username, role);
+        return ResponseEntity.ok(invoiceService.createInvoice(request, username, role));
+    }
+
+    @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<InvoiceResponse> uploadInvoice(
             @ModelAttribute InvoiceUploadRequest uploadRequest,
@@ -46,17 +57,6 @@ public class InvoiceController {
         String username = authentication.getName();
         String role = extractRole(authentication);
         return invoiceService.downloadInvoiceFile(id, username, role);
-    }
-
-    @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
-    @PostMapping
-    public ResponseEntity<InvoiceResponse> createInvoice(
-            @Validated @RequestBody InvoiceRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        String role = extractRole(authentication);
-        log.info("Creating invoice for user: {}, role: {}", username, role);
-        return ResponseEntity.ok(invoiceService.createInvoice(request, username, role));
     }
 
     @PreAuthorize("hasRole('SUPERUSER') or hasRole('AUDITOR')")
@@ -88,7 +88,7 @@ public class InvoiceController {
     public ResponseEntity<?> getInvoice(
             @PathVariable Long id,
             Authentication authentication,
-            @RequestParam(defaultValue = "false") boolean includeDetails) { // ✅ بارامتر اختياري
+            @RequestParam(defaultValue = "false") boolean includeDetails) {
 
         String username = authentication.getName();
         String role = extractRole(authentication);
@@ -143,7 +143,6 @@ public class InvoiceController {
         Map<String, Object> stats = invoiceService.getInvoiceStats(username, role);
         return ResponseEntity.ok(stats);
     }
-
 
     @PreAuthorize("hasAnyRole('USER','SUPERUSER','AUDITOR')")
     @GetMapping("/{id}/audit-logs")
