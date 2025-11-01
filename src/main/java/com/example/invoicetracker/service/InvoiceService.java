@@ -33,17 +33,33 @@ public class InvoiceService {
     private final FileStorageService fileStorageService;
     private final AuditLogService auditLogService;
 
-    //MAIN BUSINESS METHODS 
-
+    // ==================== CREATE INVOICE ====================
     public InvoiceResponse createInvoice(InvoiceRequest request, String username, String role) {
+        boolean hasFile = request.getFile() != null && !request.getFile().isEmpty();
+        boolean hasProducts = request.getProductQuantities() != null && !request.getProductQuantities().isEmpty();
+        
+        log.info("=== Creating Invoice ===");
+        log.info("User: {}, Role: {}", username, role);
+        log.info("Request Data - HasFile: {}, HasProducts: {}, ProductCount: {}", 
+                hasFile, 
+                hasProducts,
+                hasProducts ? request.getProductQuantities().size() : 0);
+        
+        if (hasProducts) {
+            log.info("Product IDs: {}", request.getProductQuantities().keySet());
+        }
+
         User currentUser = getUserByUsername(username);
         validateInvoiceCreation(role);
         User invoiceOwner = determineInvoiceOwner(username, role, request.getUserId());
+
+        validateInvoiceRequest(request);
 
         Invoice invoice;
         try {
             invoice = invoiceFactory.createInvoice(request, invoiceOwner);
         } catch (Exception e) {
+            log.error("Failed to create invoice: {}", e.getMessage());
             throw new RuntimeException("Failed to create invoice: " + e.getMessage());
         }
 
@@ -53,10 +69,16 @@ public class InvoiceService {
         auditLogService.logInvoiceAction(invoice, currentUser, ActionType.CREATE, null, null);
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
-        log.info("Invoice created successfully - ID: {}, Amount: {}", savedInvoice.getInvoiceId(), totalAmount);
+        log.info("Invoice created successfully - ID: {}, Type: {}, Amount: ${}", 
+                savedInvoice.getInvoiceId(), 
+                savedInvoice.getFileType(), 
+                totalAmount);
+
         return toInvoiceResponse(savedInvoice);
     }
 
+    // ==================== UPDATE INVOICE ====================
+    @Transactional
     public InvoiceResponse updateInvoice(Long id, InvoiceRequest request, String username, String role) {
         log.info("Updating invoice - ID: {}, User: {}, Role: {}", id, username, role);
 
@@ -66,9 +88,17 @@ public class InvoiceService {
 
         Map<String, Object> oldValues = auditLogService.captureInvoiceState(invoice);
 
-        invoice.setInvoiceDate(request.getInvoiceDate());
-        invoice.setFileType(request.getFileType());
-        invoice.setFileName(request.getFileName());
+        if (request.getInvoiceDate() != null) {
+            invoice.setInvoiceDate(request.getInvoiceDate());
+        }
+
+        if (request.getFileName() != null && !request.getFileName().trim().isEmpty()) {
+            invoice.setFileName(request.getFileName());
+        }
+
+        if ("SUPERUSER".equals(role) && request.getStatus() != null) {
+            invoice.setStatus(request.getStatus());
+        }
 
         double totalAmount = processInvoiceProducts(invoice, request);
         invoice.setTotalAmount(totalAmount);
@@ -77,11 +107,12 @@ public class InvoiceService {
         auditLogService.logInvoiceAction(invoice, currentUser, ActionType.UPDATE, oldValues, newValues);
 
         Invoice saved = invoiceRepository.save(invoice);
-        log.info("Invoice updated successfully - ID: {}, New Amount: {}", id, totalAmount);
+        log.info("Invoice updated successfully - ID: {}, New Amount: ${}", id, totalAmount);
 
         return toInvoiceResponse(saved);
     }
 
+    // ==================== DELETE INVOICE ====================
     public void deleteInvoice(Long id, String username, String role) {
         Invoice invoice = getActiveInvoice(id);
         validateInvoiceModification(invoice, username, role);
@@ -91,8 +122,10 @@ public class InvoiceService {
         auditLogService.logInvoiceAction(invoice, currentUser, ActionType.DELETE, null, null);
 
         invoiceRepository.save(invoice);
+        log.info("Invoice deleted (soft delete) - ID: {}", id);
     }
 
+    // ==================== GET INVOICE ====================
     @Transactional(readOnly = true)
     public InvoiceResponse getInvoiceById(Long id, String username, String role) {
         Invoice invoice = getActiveInvoice(id);
@@ -113,8 +146,7 @@ public class InvoiceService {
                 .map(this::toInvoiceResponse);
     }
 
-    //SEARCH METHODS
-
+    // ==================== SEARCH METHODS ====================
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> searchInvoices(InvoiceSearchRequest searchRequest, String username, String role) {
         Pageable pageable = createPageable(searchRequest);
@@ -159,45 +191,16 @@ public class InvoiceService {
         return invoicePage.map(this::toInvoiceResponse);
     }
 
-    private Pageable createPageable(InvoiceSearchRequest searchRequest) {
-        Sort.Direction direction = Sort.Direction.fromString(searchRequest.getDirection());
-        Sort sort = Sort.by(direction, searchRequest.getSortBy());
-        return PageRequest.of(searchRequest.getPage(), searchRequest.getSize(), sort);
-    }
-
-    private boolean hasSearchCriteria(InvoiceSearchRequest searchRequest) {
-        return (searchRequest.getSearch() != null && !searchRequest.getSearch().trim().isEmpty()) ||
-                searchRequest.getStartDate() != null ||
-                searchRequest.getEndDate() != null ||
-                searchRequest.getFileType() != null ||
-                searchRequest.getStatus() != null;
-    }
-
-    private FileType convertToFileType(String fileType) {
-        if (fileType == null)
-            return null;
-        try {
-            return FileType.valueOf(fileType.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private InvoiceStatus convertToInvoiceStatus(String status) {
-        if (status == null)
-            return null;
-        try {
-            return InvoiceStatus.valueOf(status.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    //FILE METHODS 
-
+    // ==================== FILE DOWNLOAD ====================
     public ResponseEntity<byte[]> downloadInvoiceFile(Long id, String username, String role) {
         Invoice invoice = getActiveInvoice(id);
         validateInvoiceAccess(invoice, username, role);
+
+        if (invoice.getFileType() == FileType.WEB_FORM || 
+            invoice.getStoredFileName() == null || 
+            invoice.getStoredFileName().isEmpty()) {
+            throw new ResourceNotFoundException("This invoice has no file to download (WEB_FORM type)");
+        }
 
         try {
             byte[] fileContent = fileStorageService.loadFile(invoice.getStoredFileName());
@@ -205,12 +208,11 @@ public class InvoiceService {
 
             return fileStorageService.createFileResponse(fileContent, contentType, invoice.getOriginalFileName());
         } catch (Exception e) {
-            throw new ResourceNotFoundException("File not found");
+            throw new ResourceNotFoundException("File not found: " + e.getMessage());
         }
     }
 
-    //DETAILS & STATS 
-
+    // ==================== DETAILS & STATS ====================
     @Transactional(readOnly = true)
     public InvoiceDetailsResponse getInvoiceDetails(Long id, String username, String role) {
         Invoice invoice = getActiveInvoice(id);
@@ -231,7 +233,8 @@ public class InvoiceService {
 
     @Transactional
     public InvoiceResponse updateInvoiceStatus(Long id, String newStatus, String username, String role) {
-        log.info("Updating invoice status - ID: {}, New Status: {}, User: {}, Role: {}", id, newStatus, username, role);
+        log.info("Updating invoice status - ID: {}, New Status: {}, User: {}, Role: {}", 
+                id, newStatus, username, role);
 
         Invoice invoice = getActiveInvoice(id);
 
@@ -247,37 +250,8 @@ public class InvoiceService {
         invoice.setStatus(status);
 
         Invoice saved = invoiceRepository.save(invoice);
-        log.info("Invoice status updated successfully - ID: {}, From: {}, To: {}", id, oldStatus, status);
-
-        return toInvoiceResponse(saved);
-    }
-
-    @Transactional
-    public InvoiceResponse updateInvoiceFull(Long id, InvoiceRequest request, String username, String role) {
-        log.info("Full update invoice - ID: {}, User: {}, Role: {}", id, username, role);
-
-        Invoice invoice = getActiveInvoice(id);
-        User currentUser = getUserByUsername(username);
-        validateInvoiceModification(invoice, username, role);
-
-        Map<String, Object> oldValues = auditLogService.captureInvoiceState(invoice);
-
-        invoice.setInvoiceDate(request.getInvoiceDate());
-        invoice.setFileType(request.getFileType());
-        invoice.setFileName(request.getFileName());
-
-        if (role.equals("SUPERUSER") && request.getStatus() != null) {
-            invoice.setStatus(request.getStatus());
-        }
-
-        double totalAmount = processInvoiceProducts(invoice, request);
-        invoice.setTotalAmount(totalAmount);
-
-        Map<String, Object> newValues = auditLogService.captureInvoiceState(invoice);
-        auditLogService.logInvoiceAction(invoice, currentUser, ActionType.UPDATE, oldValues, newValues);
-
-        Invoice saved = invoiceRepository.save(invoice);
-        log.info("Invoice full update completed - ID: {}, New Amount: {}", id, totalAmount);
+        log.info("Invoice status updated successfully - ID: {}, From: {} To: {}", 
+                id, oldStatus, status);
 
         return toInvoiceResponse(saved);
     }
@@ -309,44 +283,17 @@ public class InvoiceService {
         return stats;
     }
 
-    //PRIVATE HELPER METHODS 
+    // ==================== VALIDATION METHODS ====================
+    private void validateInvoiceRequest(InvoiceRequest request) {
+        boolean hasFile = request.getFile() != null && !request.getFile().isEmpty();
+        boolean hasProducts = request.getProductQuantities() != null && !request.getProductQuantities().isEmpty();
 
-    private double processInvoiceProducts(Invoice invoice, InvoiceRequest request) {
-        if (request.getProductQuantities() == null || request.getProductQuantities().isEmpty()) {
-            if (invoice.getInvoiceProduct() != null) {
-                invoice.getInvoiceProduct().clear();
-            }
-            return 0.0;
+        if (!hasFile && !hasProducts) {
+            throw new IllegalArgumentException(
+                "Invoice must have either a file or product information. Please provide at least one.");
         }
 
-        List<Product> products = productRepository.findAllById(request.getProductQuantities().keySet());
-        if (products.isEmpty()) {
-            throw new ResourceNotFoundException("No valid products found");
-        }
-
-        List<InvoiceProduct> invoiceProducts = products.stream()
-                .map(product -> {
-                    double quantity = request.getProductQuantities().getOrDefault(product.getProductId(), 0.0);
-                    return InvoiceProduct.builder()
-                            .invoice(invoice)
-                            .product(product)
-                            .quantity(quantity)
-                            .unitPrice(BigDecimal.valueOf(product.getUnitPrice()))
-                            .subtotal(BigDecimal.valueOf(product.getUnitPrice() * quantity))
-                            .build();
-                })
-                .collect(Collectors.toList());
-
-        if (invoice.getInvoiceProduct() == null) {
-            invoice.setInvoiceProduct(new ArrayList<>());
-        } else {
-            invoice.getInvoiceProduct().clear();
-        }
-        invoice.getInvoiceProduct().addAll(invoiceProducts);
-
-        return invoiceProducts.stream()
-                .mapToDouble(ip -> ip.getSubtotal().doubleValue())
-                .sum();
+        log.debug("Invoice request validation passed - HasFile: {}, HasProducts: {}", hasFile, hasProducts);
     }
 
     private void validateInvoiceAccess(Invoice invoice, String username, String role) {
@@ -369,30 +316,117 @@ public class InvoiceService {
         }
     }
 
+    // ==================== HELPER METHODS ====================
+    private double processInvoiceProducts(Invoice invoice, InvoiceRequest request) {
+        if (request.getProductQuantities() == null || request.getProductQuantities().isEmpty()) {
+            if (invoice.getInvoiceProduct() != null) {
+                invoice.getInvoiceProduct().clear();
+            }
+            log.debug("No products to process for invoice");
+            return 0.0;
+        }
+
+        List<Product> products = productRepository.findAllById(request.getProductQuantities().keySet());
+        if (products.isEmpty()) {
+            throw new ResourceNotFoundException("No valid products found with provided IDs");
+        }
+
+        List<InvoiceProduct> invoiceProducts = products.stream()
+                .map(product -> {
+                    double quantity = request.getProductQuantities().getOrDefault(product.getProductId(), 0.0);
+                    BigDecimal unitPrice = BigDecimal.valueOf(product.getUnitPrice());
+                    BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
+
+                    return InvoiceProduct.builder()
+                            .invoice(invoice)
+                            .product(product)
+                            .quantity(quantity)
+                            .unitPrice(unitPrice)
+                            .subtotal(subtotal)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        if (invoice.getInvoiceProduct() == null) {
+            invoice.setInvoiceProduct(new ArrayList<>());
+        } else {
+            invoice.getInvoiceProduct().clear();
+        }
+        invoice.getInvoiceProduct().addAll(invoiceProducts);
+
+        double totalAmount = invoiceProducts.stream()
+                .mapToDouble(ip -> ip.getSubtotal().doubleValue())
+                .sum();
+
+        log.debug("Processed {} products, Total Amount: ${}", invoiceProducts.size(), totalAmount);
+        return totalAmount;
+    }
+
     private User determineInvoiceOwner(String username, String role, String targetUserId) {
         User currentUser = getUserByUsername(username);
 
-        if (role.equals("SUPERUSER") && targetUserId != null) {
-            return userRepository.findById(targetUserId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Target user not found"));
-        } else {
-            return currentUser;
+        if (role.equals("SUPERUSER") && targetUserId != null && !targetUserId.trim().isEmpty()) {
+            log.info("SUPERUSER creating invoice for another user: {}", targetUserId);
+            
+            User targetUser = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Target user not found: " + targetUserId));
+            
+            if (!targetUser.getIsActive()) {
+                throw new AccessDeniedException("Cannot create invoice for inactive user: " + targetUserId);
+            }
+            
+            log.info("Invoice will be owned by: {} (userId: {})", targetUser.getUsername(), targetUserId);
+            return targetUser;
         }
+        
+        log.info("Invoice will be owned by current user: {}", currentUser.getUsername());
+        return currentUser;
     }
 
     private User getUserByUsername(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
     }
 
     private Invoice getActiveInvoice(Long id) {
         return invoiceRepository.findById(id)
                 .filter(Invoice::getIsActive)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with id: " + id));
     }
 
-    //MAPPING METHODS 
+    private Pageable createPageable(InvoiceSearchRequest searchRequest) {
+        Sort.Direction direction = Sort.Direction.fromString(searchRequest.getDirection());
+        Sort sort = Sort.by(direction, searchRequest.getSortBy());
+        return PageRequest.of(searchRequest.getPage(), searchRequest.getSize(), sort);
+    }
 
+    private boolean hasSearchCriteria(InvoiceSearchRequest searchRequest) {
+        return (searchRequest.getSearch() != null && !searchRequest.getSearch().trim().isEmpty()) ||
+                searchRequest.getStartDate() != null ||
+                searchRequest.getEndDate() != null ||
+                searchRequest.getFileType() != null ||
+                searchRequest.getStatus() != null;
+    }
+
+    private FileType convertToFileType(String fileType) {
+        if (fileType == null) return null;
+        try {
+            return FileType.valueOf(fileType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private InvoiceStatus convertToInvoiceStatus(String status) {
+        if (status == null) return null;
+        try {
+            return InvoiceStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    // ==================== MAPPING METHODS ====================
     private InvoiceResponse toInvoiceResponse(Invoice invoice) {
         List<String> productNames = invoice.getInvoiceProduct() == null ? List.of()
                 : invoice.getInvoiceProduct().stream()
@@ -464,9 +498,7 @@ public class InvoiceService {
                 .timestamp(log.getTimestamp())
                 .oldValues(log.getOldValues())
                 .newValues(log.getNewValues())
-                .description(description) 
+                .description(description)
                 .build();
     }
-
-    
 }

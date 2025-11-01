@@ -16,7 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class FileInvoiceCreator implements InvoiceCreator {
+public class HybridInvoiceCreator implements InvoiceCreator {
 
     private final FileValidator fileValidator;
     private final FileProcessor fileProcessor;
@@ -25,7 +25,9 @@ public class FileInvoiceCreator implements InvoiceCreator {
     public Invoice createInvoice(InvoiceRequest request, User user) throws Exception {
         MultipartFile file = request.getFile();
         
-        log.info("Processing file: {}", file.getOriginalFilename());
+        log.info("Processing hybrid invoice - File: {}, Products: {}", 
+                file.getOriginalFilename(), 
+                request.getProductQuantities().size());
         
         fileValidator.validateFile(file);
         
@@ -37,15 +39,14 @@ public class FileInvoiceCreator implements InvoiceCreator {
 
         String fileName = determineFileName(request.getFileName(), processingResult.getOriginalFileName());
 
-        log.info("File processed - Type: {}, Size: {} bytes, Stored as: {}", 
-                processingResult.getFileType(), 
-                processingResult.getFileSize(),
-                processingResult.getStoredFileName());
+        log.info("Hybrid invoice - FileType: {}, Products count: {}", 
+                processingResult.getFileType(),
+                request.getProductQuantities().size());
 
         return Invoice.builder()
                 .uploadedByUser(user)
                 .invoiceDate(request.getInvoiceDate())
-                .fileType(processingResult.getFileType())
+                .fileType(processingResult.getFileType()) 
                 .fileName(fileName)
                 .storedFileName(processingResult.getStoredFileName())
                 .originalFileName(processingResult.getOriginalFileName())
@@ -59,8 +60,8 @@ public class FileInvoiceCreator implements InvoiceCreator {
     @Override
     public boolean supports(InvoiceRequest request) {
         boolean hasFile = request.getFile() != null && !request.getFile().isEmpty();
-        boolean noProducts = request.getProductQuantities() == null || request.getProductQuantities().isEmpty();
-        return hasFile && noProducts;
+        boolean hasProducts = request.getProductQuantities() != null && !request.getProductQuantities().isEmpty();
+        return hasFile && hasProducts;
     }
 
     private String determineFileName(String providedName, String originalName) {
@@ -70,7 +71,6 @@ public class FileInvoiceCreator implements InvoiceCreator {
         if (originalName != null && !originalName.trim().isEmpty()) {
             return originalName;
         }
-        return "invoice_" + System.currentTimeMillis();
+        return "hybrid_invoice_" + System.currentTimeMillis();
     }
 }
-

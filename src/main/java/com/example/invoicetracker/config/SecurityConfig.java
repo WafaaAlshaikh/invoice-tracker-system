@@ -31,7 +31,7 @@ public class SecurityConfig {
 
         http.cors(cors -> cors.configurationSource(request -> {
             CorsConfiguration config = new CorsConfiguration();
-            config.setAllowedOrigins(List.of("http://localhost:3000")); 
+            config.setAllowedOrigins(List.of("http://localhost:3000"));
             config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowedHeaders(List.of("*"));
             config.setAllowCredentials(true);
@@ -43,6 +43,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html")
+                        .permitAll()
+                        .requestMatchers("/users/**").hasAnyRole("SUPERUSER", "AUDITOR")
+                        .requestMatchers("/categories/**").hasAnyRole("SUPERUSER", "AUDITOR")
+                        .requestMatchers("/products/**").hasAnyRole("SUPERUSER", "AUDITOR")
+                        .requestMatchers("/invoices/**").hasAnyRole("USER", "SUPERUSER", "AUDITOR")
                         .anyRequest().authenticated())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
