@@ -2,16 +2,33 @@ package com.example.invoicetracker.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+
+        return ResponseEntity.badRequest().body(Map.of(
+                "error", "Validation failed",
+                "details", errors));
+    }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<?> handleInvalidCredentials(InvalidCredentialsException ex) {
@@ -39,11 +56,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(RoleNotFoundException.class)
-public ResponseEntity<?> handleRoleNotFound(RoleNotFoundException ex) {
-    return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
-}
+    public ResponseEntity<?> handleRoleNotFound(RoleNotFoundException ex) {
+        return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
+    }
 
-@ExceptionHandler(ResourceNotFoundException.class)
+    @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
@@ -65,16 +82,15 @@ public ResponseEntity<?> handleRoleNotFound(RoleNotFoundException ex) {
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
-     @ExceptionHandler(IllegalArgumentException.class)
+    @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<?> handleIllegalArgument(IllegalArgumentException ex) {
-        if (ex.getMessage().contains("File") || 
-            ex.getMessage().contains("file") ||
-            ex.getMessage().contains("size") ||
-            ex.getMessage().contains("extension")) {
+        if (ex.getMessage().contains("File") ||
+                ex.getMessage().contains("file") ||
+                ex.getMessage().contains("size") ||
+                ex.getMessage().contains("extension")) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "File Validation Error",
-                "message", ex.getMessage()
-            ));
+                    "error", "File Validation Error",
+                    "message", ex.getMessage()));
         }
         return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
