@@ -37,14 +37,14 @@ public class InvoiceService {
     public InvoiceResponse createInvoice(InvoiceRequest request, String username, String role) {
         boolean hasFile = request.getFile() != null && !request.getFile().isEmpty();
         boolean hasProducts = request.getProductQuantities() != null && !request.getProductQuantities().isEmpty();
-        
+
         log.info("=== Creating Invoice ===");
         log.info("User: {}, Role: {}", username, role);
-        log.info("Request Data - HasFile: {}, HasProducts: {}, ProductCount: {}", 
-                hasFile, 
+        log.info("Request Data - HasFile: {}, HasProducts: {}, ProductCount: {}",
+                hasFile,
                 hasProducts,
                 hasProducts ? request.getProductQuantities().size() : 0);
-        
+
         if (hasProducts) {
             log.info("Product IDs: {}", request.getProductQuantities().keySet());
         }
@@ -69,9 +69,9 @@ public class InvoiceService {
         auditLogService.logInvoiceAction(invoice, currentUser, ActionType.CREATE, null, null);
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
-        log.info("Invoice created successfully - ID: {}, Type: {}, Amount: ${}", 
-                savedInvoice.getInvoiceId(), 
-                savedInvoice.getFileType(), 
+        log.info("Invoice created successfully - ID: {}, Type: {}, Amount: ${}",
+                savedInvoice.getInvoiceId(),
+                savedInvoice.getFileType(),
                 totalAmount);
 
         return toInvoiceResponse(savedInvoice);
@@ -196,9 +196,9 @@ public class InvoiceService {
         Invoice invoice = getActiveInvoice(id);
         validateInvoiceAccess(invoice, username, role);
 
-        if (invoice.getFileType() == FileType.WEB_FORM || 
-            invoice.getStoredFileName() == null || 
-            invoice.getStoredFileName().isEmpty()) {
+        if (invoice.getFileType() == FileType.WEB_FORM ||
+                invoice.getStoredFileName() == null ||
+                invoice.getStoredFileName().isEmpty()) {
             throw new ResourceNotFoundException("This invoice has no file to download (WEB_FORM type)");
         }
 
@@ -233,7 +233,7 @@ public class InvoiceService {
 
     @Transactional
     public InvoiceResponse updateInvoiceStatus(Long id, String newStatus, String username, String role) {
-        log.info("Updating invoice status - ID: {}, New Status: {}, User: {}, Role: {}", 
+        log.info("Updating invoice status - ID: {}, New Status: {}, User: {}, Role: {}",
                 id, newStatus, username, role);
 
         Invoice invoice = getActiveInvoice(id);
@@ -250,7 +250,7 @@ public class InvoiceService {
         invoice.setStatus(status);
 
         Invoice saved = invoiceRepository.save(invoice);
-        log.info("Invoice status updated successfully - ID: {}, From: {} To: {}", 
+        log.info("Invoice status updated successfully - ID: {}, From: {} To: {}",
                 id, oldStatus, status);
 
         return toInvoiceResponse(saved);
@@ -290,7 +290,7 @@ public class InvoiceService {
 
         if (!hasFile && !hasProducts) {
             throw new IllegalArgumentException(
-                "Invoice must have either a file or product information. Please provide at least one.");
+                    "Invoice must have either a file or product information. Please provide at least one.");
         }
 
         log.debug("Invoice request validation passed - HasFile: {}, HasProducts: {}", hasFile, hasProducts);
@@ -326,9 +326,22 @@ public class InvoiceService {
             return 0.0;
         }
 
-        List<Product> products = productRepository.findAllById(request.getProductQuantities().keySet());
+        List<Product> products = productRepository.findAllByIdAndIsActiveTrue(request.getProductQuantities().keySet());
         if (products.isEmpty()) {
             throw new ResourceNotFoundException("No valid products found with provided IDs");
+        }
+
+        Set<Long> requestedIds = request.getProductQuantities().keySet();
+        Set<Long> foundIds = products.stream()
+                .map(Product::getProductId)
+                .collect(Collectors.toSet());
+
+        Set<Long> missingIds = requestedIds.stream()
+                .filter(id -> !foundIds.contains(id))
+                .collect(Collectors.toSet());
+
+        if (!missingIds.isEmpty()) {
+            throw new ResourceNotFoundException("Some products are not found or inactive: " + missingIds);
         }
 
         List<InvoiceProduct> invoiceProducts = products.stream()
@@ -367,18 +380,18 @@ public class InvoiceService {
 
         if (role.equals("SUPERUSER") && targetUserId != null && !targetUserId.trim().isEmpty()) {
             log.info("SUPERUSER creating invoice for another user: {}", targetUserId);
-            
+
             User targetUser = userRepository.findById(targetUserId)
                     .orElseThrow(() -> new ResourceNotFoundException("Target user not found: " + targetUserId));
-            
+
             if (!targetUser.getIsActive()) {
                 throw new AccessDeniedException("Cannot create invoice for inactive user: " + targetUserId);
             }
-            
+
             log.info("Invoice will be owned by: {} (userId: {})", targetUser.getUsername(), targetUserId);
             return targetUser;
         }
-        
+
         log.info("Invoice will be owned by current user: {}", currentUser.getUsername());
         return currentUser;
     }
@@ -409,7 +422,8 @@ public class InvoiceService {
     }
 
     private FileType convertToFileType(String fileType) {
-        if (fileType == null) return null;
+        if (fileType == null)
+            return null;
         try {
             return FileType.valueOf(fileType.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -418,7 +432,8 @@ public class InvoiceService {
     }
 
     private InvoiceStatus convertToInvoiceStatus(String status) {
-        if (status == null) return null;
+        if (status == null)
+            return null;
         try {
             return InvoiceStatus.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException e) {

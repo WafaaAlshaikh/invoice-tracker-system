@@ -2,7 +2,9 @@ package com.example.invoicetracker.repository;
 
 import com.example.invoicetracker.model.entity.Product;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByProductCode(String productCode);
 
     Optional<Product> findByProductNameAndIsActiveTrue(String productName);
+
+    @Query("SELECT p FROM Product p WHERE p.productId IN :ids AND p.isActive = true")
+    List<Product> findAllByIdAndIsActiveTrue(@Param("ids") Set<Long> ids);
 
     Page<Product> findAllByIsActiveTrue(Pageable pageable);
 
