@@ -38,3 +38,5 @@ logs/
 # Temp files
 *.tmp
 *.temp
+
+uploads/

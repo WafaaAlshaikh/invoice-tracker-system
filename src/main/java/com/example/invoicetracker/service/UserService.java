@@ -56,6 +56,12 @@ public class UserService {
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
 
         Page<User> users = userRepository.findAll(pageable);
+        if (filter.getIsActive() != null) {
+            users = userRepository.findAllByIsActive(filter.getIsActive(), pageable);
+        } else {    
+            users = userRepository.findAll(pageable);
+        }
+
         return users.map(this::mapToResponse);
     }
 
@@ -113,7 +119,7 @@ public class UserService {
     public void deleteUser(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-        
+
         user.setIsActive(false);
         userRepository.save(user);
     }

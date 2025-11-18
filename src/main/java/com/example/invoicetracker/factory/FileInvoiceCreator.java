@@ -1,10 +1,12 @@
 package com.example.invoicetracker.factory;
 
 import com.example.invoicetracker.config.FileValidator;
+import com.example.invoicetracker.dto.InvoiceExtractionResult;
 import com.example.invoicetracker.dto.InvoiceRequest;
 import com.example.invoicetracker.model.entity.Invoice;
 import com.example.invoicetracker.model.entity.User;
 import com.example.invoicetracker.model.enums.InvoiceStatus;
+import com.example.invoicetracker.service.ai.InvoiceExtractorService;
 import com.example.invoicetracker.strategy.FileProcessingResult;
 import com.example.invoicetracker.strategy.FileProcessor;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +22,14 @@ public class FileInvoiceCreator implements InvoiceCreator {
 
     private final FileValidator fileValidator;
     private final FileProcessor fileProcessor;
+    private final InvoiceExtractorService invoiceExtractorService; 
+
 
     @Override
     public Invoice createInvoice(InvoiceRequest request, User user) throws Exception {
         MultipartFile file = request.getFile();
         
-        log.info("Processing file: {}", file.getOriginalFilename());
+        log.info("Processing file with AI extraction: {}", file.getOriginalFilename());
         
         fileValidator.validateFile(file);
         
@@ -35,14 +39,21 @@ public class FileInvoiceCreator implements InvoiceCreator {
             throw new RuntimeException("File processing failed: " + processingResult.getErrorMessage());
         }
 
+        //  AI Extraction
+        Double extractedAmount = null;
+        try {
+            InvoiceExtractionResult extractionResult = invoiceExtractorService.extractInvoiceData(file);
+            if (extractionResult.isSuccess()) {
+                extractedAmount = extractionResult.getTotalAmount();
+                log.info("AI extracted amount: ${}", extractedAmount);
+            }
+        } catch (Exception e) {
+            log.warn("AI extraction failed, using default: {}", e.getMessage());
+        }
+
         String fileName = determineFileName(request.getFileName(), processingResult.getOriginalFileName());
 
-        log.info("File processed - Type: {}, Size: {} bytes, Stored as: {}", 
-                processingResult.getFileType(), 
-                processingResult.getFileSize(),
-                processingResult.getStoredFileName());
-
-        return Invoice.builder()
+        Invoice invoice = Invoice.builder()
                 .uploadedByUser(user)
                 .invoiceDate(request.getInvoiceDate())
                 .fileType(processingResult.getFileType())
@@ -52,8 +63,10 @@ public class FileInvoiceCreator implements InvoiceCreator {
                 .fileSize(processingResult.getFileSize())
                 .status(InvoiceStatus.PENDING)
                 .isActive(true)
-                .totalAmount(0.0)
+                .totalAmount(extractedAmount != null ? extractedAmount : 0.0) 
                 .build();
+
+        return invoice;
     }
 
     @Override

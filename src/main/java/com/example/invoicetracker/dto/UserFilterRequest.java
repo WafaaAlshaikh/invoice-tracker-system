@@ -20,4 +20,7 @@ public class UserFilterRequest {
     
     @Schema(description = "Search term", example = "john")
     private String search;
+
+    @Schema(description = "Filter by active status", example = "true")
+    private Boolean isActive;
 }

@@ -10,6 +10,8 @@ import com.example.invoicetracker.model.enums.InvoiceStatus;
 import com.example.invoicetracker.repository.InvoiceRepository;
 import com.example.invoicetracker.repository.ProductRepository;
 import com.example.invoicetracker.repository.UserRepository;
+import com.example.invoicetracker.service.ai.InvoiceExtractorService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class InvoiceService {
+    private final InvoiceExtractorService invoiceExtractorService;
     private final InvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
@@ -63,18 +66,72 @@ public class InvoiceService {
             throw new RuntimeException("Failed to create invoice: " + e.getMessage());
         }
 
-        double totalAmount = processInvoiceProducts(invoice, request);
-        invoice.setTotalAmount(totalAmount);
+        // ==================== AI EXTRACTION LOGIC ====================
+        Double extractedTotalAmount = extractTotalAmountFromFile(request);
+        if (extractedTotalAmount != null) {
+            log.info("✅ AI extracted total amount: ${}", extractedTotalAmount);
+            invoice.setTotalAmount(extractedTotalAmount);
+        } else {
+            // Fallback to traditional calculation
+            double totalAmount = processInvoiceProducts(invoice, request);
+            invoice.setTotalAmount(totalAmount);
+            log.info("📊 Using traditional calculation - Amount: ${}", totalAmount);
+        }
 
         auditLogService.logInvoiceAction(invoice, currentUser, ActionType.CREATE, null, null);
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
-        log.info("Invoice created successfully - ID: {}, Type: {}, Amount: ${}",
+        log.info("🎉 Invoice created successfully - ID: {}, Type: {}, Amount: ${}",
                 savedInvoice.getInvoiceId(),
                 savedInvoice.getFileType(),
-                totalAmount);
+                savedInvoice.getTotalAmount());
 
         return toInvoiceResponse(savedInvoice);
+    }
+
+    /**
+     * Extract total amount from file using AI if available
+     */
+    private Double extractTotalAmountFromFile(InvoiceRequest request) {
+        try {
+            if (request.getFile() != null && !request.getFile().isEmpty()) {
+                String contentType = request.getFile().getContentType();
+
+                if (contentType != null &&
+                        (contentType.startsWith("image/") || contentType.equals("application/pdf"))) {
+
+                    log.info("🔍 Attempting AI extraction for file: {} (Type: {})",
+                            request.getFile().getOriginalFilename(), contentType);
+
+                    InvoiceExtractionResult extractionResult = invoiceExtractorService
+                            .extractInvoiceData(request.getFile());
+
+                    if (extractionResult.isSuccess() && extractionResult.getTotalAmount() != null) {
+                        log.info("✅ AI extraction successful - Total Amount: ${}", extractionResult.getTotalAmount());
+
+                        if (extractionResult.getInvoiceDate() != null) {
+                            log.info("📅 Extracted invoice date: {}", extractionResult.getInvoiceDate());
+                        }
+                        if (extractionResult.getVendor() != null) {
+                            log.info("🏢 Extracted vendor: {}", extractionResult.getVendor());
+                        }
+
+                        return extractionResult.getTotalAmount();
+                    } else {
+                        log.warn("❌ AI extraction failed or no amount found: {}",
+                                extractionResult.getErrorMessage());
+                    }
+                } else {
+                    log.info("⏭️ Skipping AI extraction - Unsupported file type: {}", contentType);
+                }
+            } else {
+                log.info("⏭️ No file available for AI extraction");
+            }
+        } catch (Exception e) {
+            log.error("❌ Error during AI extraction: {}", e.getMessage());
+
+        }
+        return null;
     }
 
     // ==================== UPDATE INVOICE ====================
@@ -100,7 +157,8 @@ public class InvoiceService {
             invoice.setStatus(request.getStatus());
         }
 
-        double totalAmount = processInvoiceProducts(invoice, request);
+        // Calculate total amount with AI extraction support
+        double totalAmount = calculateTotalAmountForUpdate(invoice, request);
         invoice.setTotalAmount(totalAmount);
 
         Map<String, Object> newValues = auditLogService.captureInvoiceState(invoice);
@@ -317,6 +375,44 @@ public class InvoiceService {
     }
 
     // ==================== HELPER METHODS ====================
+    
+    /**
+     * Calculate total amount for invoice update.
+     * Priority: AI extraction > Products calculation > Keep existing total
+     */
+    private double calculateTotalAmountForUpdate(Invoice invoice, InvoiceRequest request) {
+        // Priority 1: Try AI extraction if new file is provided
+        if (request.getFile() != null && !request.getFile().isEmpty()) {
+            log.info("🔍 New file provided during update - Attempting AI extraction");
+            Double extractedAmount = extractTotalAmountFromFile(request);
+            
+            if (extractedAmount != null && extractedAmount > 0) {
+                log.info("✅ AI extraction successful during update - Amount: ${}", extractedAmount);
+                return extractedAmount;
+            } else {
+                log.warn("⚠️ AI extraction failed for new file during update");
+            }
+        }
+        
+        // Priority 2: Calculate from products if provided
+        if (request.getProductQuantities() != null && !request.getProductQuantities().isEmpty()) {
+            log.info("📦 Products provided - Calculating total from products");
+            double productTotal = processInvoiceProducts(invoice, request);
+            log.info("✅ Calculated total from products: ${}", productTotal);
+            return productTotal;
+        }
+        
+        // Priority 3: Keep existing total if no new data provided
+        if (invoice.getTotalAmount() != null && invoice.getTotalAmount() > 0) {
+            log.info("💾 No new file or products - Keeping existing total: ${}", invoice.getTotalAmount());
+            return invoice.getTotalAmount();
+        }
+        
+        // Fallback: Return 0 if nothing else is available
+        log.warn("⚠️ No total amount source available - Returning 0");
+        return 0.0;
+    }
+    
     private double processInvoiceProducts(Invoice invoice, InvoiceRequest request) {
         if (request.getProductQuantities() == null || request.getProductQuantities().isEmpty()) {
             if (invoice.getInvoiceProduct() != null) {
