@@ -50,20 +50,20 @@ public class UserService {
         return mapToResponse(user);
     }
 
-    @Transactional(readOnly = true)
-    public Page<UserResponse> listUsers(UserFilterRequest filter) {
-        Sort sort = Sort.by(Sort.Direction.fromString(filter.getDirection()), filter.getSortBy());
-        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+@Transactional(readOnly = true)
+public Page<UserResponse> listUsers(UserFilterRequest filter) {
+    Sort sort = Sort.by(Sort.Direction.fromString(filter.getDirection()), filter.getSortBy());
+    Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
 
-        Page<User> users = userRepository.findAll(pageable);
-        if (filter.getIsActive() != null) {
-            users = userRepository.findAllByIsActive(filter.getIsActive(), pageable);
-        } else {    
-            users = userRepository.findAll(pageable);
-        }
-
-        return users.map(this::mapToResponse);
+    Page<User> users;
+    if (filter.getIsActive() != null) {
+        users = userRepository.findAllByIsActive(filter.getIsActive(), pageable);
+    } else {    
+        users = userRepository.findAll(pageable);
     }
+
+    return users.map(this::mapToResponse);
+}
 
     @Transactional
     public UserResponse updateUser(String username, UserUpdateRequest request) {

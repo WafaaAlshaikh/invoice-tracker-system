@@ -77,11 +77,18 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
+        String username = request.getUsername();
+        if (username == null || username.trim().isEmpty()) {
+        String failedUsername = username != null ? username : "null";
+        loginAttemptService.loginFailed(failedUsername);
+        throw new InvalidCredentialsException("Invalid username or password");
+    }
+    
         if (loginAttemptService.isBlocked(request.getUsername())) {
             throw new TooManyAttemptsException("Too many failed login attempts. Try again later.");
         }
 
-        User user = userRepository.findByUsername(request.getUsername())
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
 
         if (Boolean.FALSE.equals(user.getIsActive())) {

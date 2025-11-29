@@ -48,31 +48,40 @@ public class InvoiceUploadRequestMapper {
     }
 
     private void processProducts(InvoiceRequest request, InvoiceUploadRequest uploadRequest) {
-        Map<Long, Double> productQuantitiesMap = new HashMap<>();
+    Map<Long, Double> productQuantitiesMap = new HashMap<>();
+    List<Long> allProductIds = new ArrayList<>();
+    
+    if (uploadRequest.getProductIds() != null && !uploadRequest.getProductIds().trim().isEmpty()) {
+        List<Long> parsedIds = dataProcessingService.parseProductIds(uploadRequest.getProductIds());
+        allProductIds.addAll(parsedIds);
+    }
+    
+    if (uploadRequest.getProductQuantities() != null && !uploadRequest.getProductQuantities().trim().isEmpty()) {
+        Map<Long, Double> parsedQuantities = dataProcessingService.parseProductQuantities(uploadRequest.getProductQuantities());
+        productQuantitiesMap = new HashMap<>(parsedQuantities);
         
-        if (uploadRequest.getProductIds() != null && !uploadRequest.getProductIds().trim().isEmpty()) {
-            List<Long> productIds = dataProcessingService.parseProductIds(uploadRequest.getProductIds());
-            
-            if (uploadRequest.getProductQuantities() != null && !uploadRequest.getProductQuantities().trim().isEmpty()) {
-                productQuantitiesMap = dataProcessingService.parseProductQuantities(uploadRequest.getProductQuantities());
-            } else {
-                for (Long productId : productIds) {
-                    productQuantitiesMap.put(productId, 1.0);
-                }
+        for (Long productId : productQuantitiesMap.keySet()) {
+            if (!allProductIds.contains(productId)) {
+                allProductIds.add(productId);
             }
-        } else if (uploadRequest.getProductQuantities() != null && !uploadRequest.getProductQuantities().trim().isEmpty()) {
-            productQuantitiesMap = dataProcessingService.parseProductQuantities(uploadRequest.getProductQuantities());
-        }
-        
-        request.setProductQuantities(productQuantitiesMap);
-        
-        if (!productQuantitiesMap.isEmpty()) {
-            request.setProductIds(new ArrayList<>(productQuantitiesMap.keySet()));
-        } else {
-            request.setProductIds(new ArrayList<>());
         }
     }
-
+    
+    if (productQuantitiesMap.isEmpty() && !allProductIds.isEmpty()) {
+        for (Long productId : allProductIds) {
+            productQuantitiesMap.put(productId, 1.0);
+        }
+    }
+    
+    if (!allProductIds.isEmpty()) {
+        for (Long productId : allProductIds) {
+            productQuantitiesMap.putIfAbsent(productId, 1.0);
+        }
+    }
+    
+    request.setProductQuantities(productQuantitiesMap);
+    request.setProductIds(new ArrayList<>(productQuantitiesMap.keySet()));
+}
  
 
     private InvoiceRequest prepareInvoiceUploadRequest(

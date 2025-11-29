@@ -2,8 +2,12 @@ package com.example.invoicetracker.dto;
 
 import lombok.Data;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;    
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 @Schema(description = "User filter criteria")
 public class UserFilterRequest {
     @Schema(description = "Page number (0-based)", example = "0")
