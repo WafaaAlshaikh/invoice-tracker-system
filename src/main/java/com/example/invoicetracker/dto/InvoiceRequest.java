@@ -12,7 +12,7 @@ import com.example.invoicetracker.model.enums.InvoiceStatus;
 
 import jakarta.validation.constraints.NotNull;
 import io.swagger.v3.oas.annotations.media.Schema;
-
+    
 @Data
 @Schema(description = "Invoice creation/update request")
 public class InvoiceRequest {
@@ -41,4 +41,10 @@ public class InvoiceRequest {
     
     @Schema(description = "Invoice status (OPTIONAL)")
     private InvoiceStatus status;
+
+    @Schema(description = "Total amount (OPTIONAL - can be calculated from products or extracted from file)")
+    private Double totalAmount;
+    
+    @Schema(description = "Vendor name (OPTIONAL)")
+    private String vendor;
 }

@@ -95,4 +95,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(DuplicateInvoiceException.class)
+public ResponseEntity<?> handleDuplicateInvoice(DuplicateInvoiceException ex) {
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("error", "Duplicate Invoice Detected");
+    response.put("message", ex.getMessage());
+    response.put("confidenceScore", ex.getConfidenceScore());
+    response.put("similarInvoices", ex.getSimilarInvoices());
+    response.put("timestamp", LocalDateTime.now());
+    
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+}
+
 }

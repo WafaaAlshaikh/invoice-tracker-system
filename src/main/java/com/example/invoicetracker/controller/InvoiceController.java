@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.invoicetracker.exception.DuplicateInvoiceException;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -46,87 +50,85 @@ public class InvoiceController {
     }
 
     // ==================== CREATE / UPLOAD ====================
-    
 
-     // Create invoice with JSON (for Web Form)
-     
+    // Create invoice with JSON (for Web Form)
+
     @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(
-        summary = "Create invoice (JSON)", 
-        description = "Creates invoice with product data only (Web Form)"
-    )
+    @Operation(summary = "Create invoice (JSON)", description = "Creates invoice with product data only (Web Form)")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Invoice created successfully", 
-                    content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-        @ApiResponse(responseCode = "403", description = "Access denied")
+            @ApiResponse(responseCode = "200", description = "Invoice created successfully", content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
     })
     public ResponseEntity<InvoiceResponse> createInvoiceJson(
             @Validated @RequestBody InvoiceRequest request,
             @Parameter(hidden = true) Authentication authentication) {
 
         Map<String, String> userInfo = authHelper.getUserInfo(authentication);
-        log.info("Creating invoice (JSON) for user: {}, role: {}", 
+        log.info("Creating invoice (JSON) for user: {}, role: {}",
                 userInfo.get("username"), userInfo.get("role"));
 
         InvoiceResponse response = invoiceService.createInvoice(
-                request, 
-                userInfo.get("username"), 
+                request,
+                userInfo.get("username"),
                 userInfo.get("role"));
-        
+
         return ResponseEntity.ok(response);
     }
 
-     // Create/Upload invoice with file (multipart)
-     
+    // Create/Upload invoice with file (multipart)
+
     @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-        summary = "Upload invoice with file", 
-        description = "Creates invoice with file and optional product data"
-    )
+    @Operation(summary = "Upload invoice with file", description = "Creates invoice with file and optional product data")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Invoice uploaded successfully", 
-                    content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-        @ApiResponse(responseCode = "403", description = "Access denied")
+            @ApiResponse(responseCode = "200", description = "Invoice uploaded successfully", content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "409", description = "Duplicate invoice detected") 
     })
-    public ResponseEntity<InvoiceResponse> uploadInvoice(
+    public ResponseEntity<?> uploadInvoice(
             @Validated @ModelAttribute InvoiceUploadRequest uploadRequest,
             @Parameter(hidden = true) Authentication authentication) {
 
         Map<String, String> userInfo = authHelper.getUserInfo(authentication);
-        log.info("Uploading invoice for user: {}, role: {}", 
+        log.info("Uploading invoice for user: {}, role: {}",
                 userInfo.get("username"), userInfo.get("role"));
 
-        InvoiceRequest request = requestMapper.prepareInvoiceUploadRequest(uploadRequest);
-        
-        InvoiceResponse response = invoiceService.createInvoice(
-                request, 
-                userInfo.get("username"), 
-                userInfo.get("role"));
-        
-        return ResponseEntity.ok(response);
+        try {
+            InvoiceRequest request = requestMapper.prepareInvoiceUploadRequest(uploadRequest);
+
+            InvoiceResponse response = invoiceService.createInvoice(
+                    request,
+                    userInfo.get("username"),
+                    userInfo.get("role"));
+
+            return ResponseEntity.ok(response);
+
+        } catch (DuplicateInvoiceException e) {
+            log.warn("Duplicate invoice blocked: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of(
+                            "error", "Duplicate Invoice",
+                            "message", e.getMessage(),
+                            "confidenceScore", e.getConfidenceScore(),
+                            "timestamp", LocalDateTime.now()));
+        }
     }
 
     // ==================== UPDATE ====================
-    
-    
-     //Update invoice with JSON
+
+    // Update invoice with JSON
 
     @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(
-        summary = "Update invoice (JSON)", 
-        description = "Updates invoice with product data"
-    )
+    @Operation(summary = "Update invoice (JSON)", description = "Updates invoice with product data")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Invoice updated successfully", 
-                    content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-        @ApiResponse(responseCode = "404", description = "Invoice not found"),
-        @ApiResponse(responseCode = "403", description = "Access denied")
+            @ApiResponse(responseCode = "200", description = "Invoice updated successfully", content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "404", description = "Invoice not found"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
     })
     public ResponseEntity<InvoiceResponse> updateInvoiceJson(
             @PathVariable Long id,
@@ -134,33 +136,28 @@ public class InvoiceController {
             Authentication authentication) {
 
         Map<String, String> userInfo = authHelper.getUserInfo(authentication);
-        log.info("Updating invoice {} (JSON) by user: {}, role: {}", 
+        log.info("Updating invoice {} (JSON) by user: {}, role: {}",
                 id, userInfo.get("username"), userInfo.get("role"));
 
         InvoiceResponse response = invoiceService.updateInvoice(
-                id, 
-                request, 
-                userInfo.get("username"), 
+                id,
+                request,
+                userInfo.get("username"),
                 userInfo.get("role"));
-        
+
         return ResponseEntity.ok(response);
     }
 
-    
-     // Update invoice with file (multipart)
-     
+    // Update invoice with file (multipart)
+
     @PreAuthorize("hasRole('USER') or hasRole('SUPERUSER')")
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-        summary = "Update invoice with file", 
-        description = "Updates invoice with file and/or product data"
-    )
+    @Operation(summary = "Update invoice with file", description = "Updates invoice with file and/or product data")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Invoice updated successfully", 
-                    content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-        @ApiResponse(responseCode = "404", description = "Invoice not found"),
-        @ApiResponse(responseCode = "403", description = "Access denied")
+            @ApiResponse(responseCode = "200", description = "Invoice updated successfully", content = @Content(schema = @Schema(implementation = InvoiceResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data"),
+            @ApiResponse(responseCode = "404", description = "Invoice not found"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
     })
     public ResponseEntity<InvoiceResponse> updateInvoiceMultipart(
             @PathVariable Long id,
@@ -168,7 +165,7 @@ public class InvoiceController {
             Authentication authentication) {
 
         Map<String, String> userInfo = authHelper.getUserInfo(authentication);
-        log.info("Updating invoice {} (multipart) by user: {}, role: {}", 
+        log.info("Updating invoice {} (multipart) by user: {}, role: {}",
                 id, userInfo.get("username"), userInfo.get("role"));
 
         InvoiceRequest request = requestMapper.prepareInvoiceUpdateRequest(
@@ -179,11 +176,11 @@ public class InvoiceController {
                 uploadRequest.getFileName());
 
         InvoiceResponse response = invoiceService.updateInvoice(
-                id, 
-                request, 
-                userInfo.get("username"), 
+                id,
+                request,
+                userInfo.get("username"),
                 userInfo.get("role"));
-        
+
         return ResponseEntity.ok(response);
     }
 
@@ -265,7 +262,7 @@ public class InvoiceController {
 
         Map<String, String> userInfo = authHelper.getUserInfo(authentication);
         Page<InvoiceResponse> result = invoiceService.searchInvoices(
-                searchRequest, 
+                searchRequest,
                 userInfo.get("username"),
                 userInfo.get("role"));
         return ResponseEntity.ok(result);
@@ -278,7 +275,7 @@ public class InvoiceController {
     public ResponseEntity<Map<String, Object>> getInvoiceStats(Authentication authentication) {
         Map<String, String> userInfo = authHelper.getUserInfo(authentication);
         Map<String, Object> stats = invoiceService.getInvoiceStats(
-                userInfo.get("username"), 
+                userInfo.get("username"),
                 userInfo.get("role"));
         return ResponseEntity.ok(stats);
     }
