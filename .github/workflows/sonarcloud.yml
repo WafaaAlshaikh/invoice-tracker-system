@@ -50,5 +50,5 @@ jobs:
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=WafaaAlshaikh_invoice-tracker-system \
-            -Dsonar.organization=<10a40645446587ac7e0ee35a55abebc8487d71ca> \
+            -Dsonar.organization=10a40645446587ac7e0ee35a55abebc8487d71ca \
             -Dsonar.host.url=https://sonarcloud.io
