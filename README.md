@@ -1,6 +1,6 @@
 <div align="center">
 
-![Invoice Tracker — full-stack invoice management](docs/images/overview.svg)
+![Invoice Tracker — full-stack invoice management](uploads/overview.svg)
 
 # Invoice Tracker System
 
@@ -94,7 +94,7 @@ The complete project consists of three applications:
 
 ## Architecture
 
-![System architecture showing the React client, main API, databases, storage, duplicate service, and Gemini](docs/images/architecture.svg)
+![System architecture showing the React client, main API, databases, storage, duplicate service, and Gemini](uploads/architecture.svg)
 
 The main backend follows a layered design:
 
@@ -464,7 +464,6 @@ The main domain has seven entities: `User`, `Role`, `Invoice`, `InvoiceProduct`,
 
 ```text
 invoicetracker/
-├── docs/images/                       # README illustrations
 ├── src/main/java/com/example/invoicetracker/
 │   ├── config/                        # Security, validation, initialization
 │   ├── controller/                    # REST endpoints
