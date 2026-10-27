@@ -34,11 +34,12 @@ The complete project consists of three applications:
 
 > **Repository scope:** this repository contains the main backend at its root. The [React frontend](https://github.com/WafaaAlshaikh/invoice-tracker-frontend) and [duplicate-check service](https://github.com/WafaaAlshaikh/duplicate-check-service) are maintained in separate repositories. Download or clone both companion repositories to work with the complete system; cloning this repository alone provides only the main backend.
 >
-> The images below are documentation illustrations, not screenshots of a running application. Runtime behavior and external integrations have not been verified as part of this documentation update.
+> **Screenshot disclosure:** the gallery below shows the original React interface rendered in an isolated documentation preview with fictional users and invoices. API responses and authentication context were supplied by local fixtures; no live backend, database, or AI service was connected. These screenshots demonstrate the UI, not end-to-end functionality. The banner and architecture diagram are documentation illustrations.
 
 ## Contents
 
 - [Features](#features)
+- [Application Screenshots](#application-screenshots)
 - [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
 - [Roles and Permissions](#roles-and-permissions)
@@ -91,6 +92,30 @@ The complete project consists of three applications:
 - PDF text extraction uses PDFBox; additional parsing uses Tika.
 
 > Duplicate detection is advisory logic, not a guarantee that every duplicate will be found. The main backend includes error fallbacks when the service is unavailable. Image parsing through Tika is not equivalent to a configured OCR engine.
+
+## Application Screenshots
+
+These captures use the supplied frontend components without redesigning their visual layout. Every image is labeled **DOCUMENTATION PREVIEW · SAMPLE DATA**. Names, email addresses, amounts, and records are fictional.
+
+### Dashboard
+
+Overview cards, recent invoices, status labels, and the current user's role information.
+
+![Original Invoice Tracker dashboard displaying fictional invoice statistics and recent records](uploads/dashboard-demo.jpg)
+
+### Invoice Management
+
+Invoice totals, navigation tabs, document types, status labels, and row actions populated with sample records.
+
+![Original invoice management interface with five fictional invoices](uploads/invoices-demo.jpg)
+
+### User Management
+
+Administrator view of sample accounts and their roles. Addresses use the reserved `example.com` domain.
+
+![Original user management interface with fictional administrator, user, and auditor accounts](uploads/users-demo.jpg)
+
+The screenshot preview is read-only. It does not validate uploads, edits, permissions, duplicate detection, or AI results against real services.
 
 ## Architecture
 
