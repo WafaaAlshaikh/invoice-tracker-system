@@ -1,6 +1,6 @@
 <div align="center">
 
-![Invoice Tracker — full-stack invoice management](uploads/overview.svg)
+![Invoice Tracker — full-stack invoice management](overview.svg)
 
 # Invoice Tracker System
 
@@ -94,7 +94,7 @@ The complete project consists of three applications:
 
 ## Architecture
 
-![System architecture showing the React client, main API, databases, storage, duplicate service, and Gemini](uploads/architecture.svg)
+![System architecture showing the React client, main API, databases, storage, duplicate service, and Gemini](architecture.svg)
 
 The main backend follows a layered design:
 
