@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">Invoice Tracker architecture</title>
+  <desc id="desc">React connects to the main invoice API. The API uses MySQL, file storage, Gemini, and the duplicate-check service. The duplicate service has a separate MySQL database and optional Gemini integration.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="m0 0 8 4-8 4z" fill="#70879e"/></marker></defs>
+  <rect width="1200" height="600" rx="20" fill="#f3f7fb"/>
+  <g font-family="Arial, sans-serif">
+    <text x="42" y="52" font-size="26" fill="#152c46" font-weight="700">System architecture</text>
+    <text x="42" y="80" font-size="15" fill="#536b82">Three applications • Two data stores • Optional AI integrations</text>
+    <g fill="none" stroke="#70879e" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M287 222H435"/><path d="M710 222H862"/>
+      <path d="M570 280V376"/><path d="M997 280V376"/>
+      <path d="M480 280V328H167V376"/>
+      <path d="M662 280V328H775V482"/><path d="M1085 280V515H890" stroke-dasharray="6 5"/>
+    </g>
+    <g stroke="#ccdbe8" stroke-width="1.5">
+      <rect x="42" y="164" width="245" height="116" rx="14" fill="#fff"/>
+      <rect x="435" y="164" width="275" height="116" rx="14" fill="#173c57"/>
+      <rect x="862" y="164" width="290" height="116" rx="14" fill="#fff"/>
+      <rect x="42" y="376" width="245" height="90" rx="14" fill="#fff"/>
+      <rect x="435" y="376" width="275" height="90" rx="14" fill="#fff"/>
+      <rect x="862" y="376" width="290" height="90" rx="14" fill="#fff"/>
+      <rect x="645" y="482" width="245" height="82" rx="14" fill="#e0f4ef" stroke="#9ed4c7"/>
+    </g>
+    <g text-anchor="middle">
+      <text x="165" y="202" font-size="20" fill="#173c57" font-weight="700">React frontend</text>
+      <text x="165" y="231" font-size="15" fill="#536b82">Material UI · Axios</text>
+      <text x="165" y="255" font-size="13" fill="#536b82">localhost:3000</text>
+      <text x="573" y="202" font-size="20" fill="#fff" font-weight="700">Invoice API</text>
+      <text x="573" y="231" font-size="15" fill="#d2e6ef">Spring Boot · JWT · JPA</text>
+      <text x="573" y="255" font-size="13" fill="#d2e6ef">localhost:8080</text>
+      <text x="1007" y="202" font-size="20" fill="#173c57" font-weight="700">Duplicate-check service</text>
+      <text x="1007" y="231" font-size="15" fill="#536b82">Fingerprints · Similarity</text>
+      <text x="1007" y="255" font-size="13" fill="#536b82">localhost:8081</text>
+      <text x="165" y="412" font-size="18" fill="#173c57" font-weight="700">File storage</text>
+      <text x="165" y="440" font-size="14" fill="#536b82">PDF and image documents</text>
+      <text x="573" y="412" font-size="18" fill="#173c57" font-weight="700">MySQL</text>
+      <text x="573" y="440" font-size="14" fill="#536b82">invoice_tracker</text>
+      <text x="1007" y="412" font-size="18" fill="#173c57" font-weight="700">MySQL</text>
+      <text x="1007" y="440" font-size="14" fill="#536b82">duplicate_check_db</text>
+      <text x="768" y="516" font-size="18" fill="#176652" font-weight="700">Google Gemini</text>
+      <text x="768" y="543" font-size="13" fill="#39705f">Extraction · Chat · Comparison</text>
+      <text x="360" y="207" font-size="13" fill="#536b82">HTTP + JWT</text>
+      <text x="785" y="207" font-size="13" fill="#536b82">Internal HTTP</text>
+    </g>
+  </g>
+</svg>
